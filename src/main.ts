@@ -2,13 +2,24 @@ import * as THREE from 'three';
 import Triangle from './components/Triangle';
 import Grid from './components/Grid';
 import Stats from 'stats.js';
+import { animate, motionValue } from 'framer-motion/dom';
+import { distance } from './utils';
+import TweenMax from 'gsap';
+
+interface ITriangleObject {
+  triangle: Triangle;
+  opacity: number;
+}
+
+const pointer = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
 const stats = new Stats();
-const gridSize = 100;
-const squareSize = 20;
+const gridSize = 400;
+const squareSize = 40;
 const PARAMS = {
   color1: '#FFFFFF',
 };
-const triangles = [];
+const triangleObjects: ITriangleObject[] = [];
 const sizes = {
   width: window.innerWidth,
   height: window.innerHeight,
@@ -23,7 +34,7 @@ const camera = new THREE.OrthographicCamera(
   (frustumSize * aspect) / 2,
   frustumSize / 2,
   frustumSize / -2,
-  150,
+  1,
   10000
 );
 
@@ -43,6 +54,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(stats.dom);
 scene.add(grid);
 
+const groupMesh = new THREE.Object3D();
 for (let i = -2; i < 3; i++) {
   for (let j = -2; j < 3; j++) {
     const points = [
@@ -50,24 +62,27 @@ for (let i = -2; i < 3; i++) {
       new THREE.Vector3(-squareSize / 2, -squareSize / 2, 0),
       new THREE.Vector3(squareSize / 2, squareSize / 2, 0),
     ];
+    const opacity = 0.1 * Math.floor(Math.random() * 10 + 1);
     const material = new THREE.MeshBasicMaterial({
       color: PARAMS.color1,
-      opacity: 0.25 * Math.floor(Math.random() * 4 + 1),
+      opacity: 0.1 * Math.floor(Math.random() * 10 + 1),
       transparent: true,
     });
     const triangle = new Triangle(points, material);
     triangle.rotateZ((Math.round(Math.random() * 4) * Math.PI) / 2);
     triangle.position.x += i * squareSize;
     triangle.position.y += j * squareSize;
-    triangles.push(triangle);
-    scene.add(triangle);
+    (triangle.material as THREE.Material).opacity = 0;
+
+    const triangleObject = {
+      triangle: triangle,
+      opacity: opacity,
+    };
+    triangleObjects.push(triangleObject);
+    groupMesh.add(triangle);
   }
 }
-
-triangles.forEach((el: Triangle) => {
-  (el.material as THREE.Material).opacity = 0.75;
-});
-
+scene.add(groupMesh);
 scene.add(camera);
 stats.showPanel(0);
 
@@ -89,20 +104,54 @@ window.addEventListener('resize', () => {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
-/**
- * Animate
- */
-// const clock = new THREE.Clock();
-const tick = () => {
-  stats.begin();
-  // const elapsedTime = clock.getElapsedTime();
-  //mesh.rotation.y += 0.01 * Math.sin(1)
-  //mesh.rotation.y += 0.01 * Math.sin(1)
-  //mesh.rotation.z += 0.01 * Math.sin(1);
-  renderer.render(scene, camera);
-  stats.end();
+window.addEventListener(
+  'mousemove',
+  (event) => {
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  },
+  {
+    passive: true,
+  }
+);
 
-  window.requestAnimationFrame(tick);
+const draw = () => {
+  requestAnimationFrame(draw);
+  render();
+  stats.update();
 };
 
-tick();
+const render = () => {
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects([grid]);
+  if (intersects.length) {
+    const { x, y } = intersects[0].point;
+    if (x === 0 && y === 0) return;
+    triangleObjects.forEach(async (el: ITriangleObject) => {
+      const mouseDistance = distance(
+        x,
+        y,
+        el.triangle.position.x + groupMesh.position.x,
+        el.triangle.position.y + groupMesh.position.y + 10
+      );
+      if (mouseDistance < 85) {
+        (el.triangle.material as THREE.Material).opacity = el.opacity;
+        TweenMax.to(el.triangle.material, 2.0, {
+          opacity: el.opacity,
+        });
+      } else {
+        TweenMax.to(el.triangle.material, 2.0, {
+          opacity: 0,
+        });
+      }
+    });
+  }
+
+  renderer.render(scene, camera);
+};
+
+draw();
+
+// import App from './components/App';
+
+// new App().init();
