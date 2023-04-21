@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import Triangle from './components/Triangle';
 import Grid from './components/Grid';
 import Stats from 'stats.js';
-import { animate, motionValue } from 'framer-motion/dom';
 import { distance } from './utils';
 import TweenMax from 'gsap';
 
@@ -15,7 +14,7 @@ const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
 const stats = new Stats();
 const gridSize = 400;
-const squareSize = 40;
+const squareSize = 20;
 const PARAMS = {
   color1: '#FFFFFF',
 };
@@ -26,7 +25,12 @@ const sizes = {
 };
 const canvas = document.querySelector('canvas.webgl') as HTMLElement;
 const scene = new THREE.Scene();
-const grid = new Grid(gridSize, gridSize, 5, 5);
+const grid = new Grid(
+  gridSize,
+  gridSize,
+  gridSize / squareSize,
+  gridSize / squareSize
+);
 let aspect = sizes.width / sizes.height;
 const frustumSize = 600;
 const camera = new THREE.OrthographicCamera(
@@ -55,8 +59,16 @@ document.body.appendChild(stats.dom);
 scene.add(grid);
 
 const groupMesh = new THREE.Object3D();
-for (let i = -2; i < 3; i++) {
-  for (let j = -2; j < 3; j++) {
+for (
+  let i = Math.ceil((-gridSize / squareSize) * 0.5);
+  i <= Math.floor((gridSize / squareSize) * 0.5);
+  i++
+) {
+  for (
+    let j = Math.ceil((-gridSize / squareSize) * 0.5);
+    j <= Math.floor((gridSize / squareSize) * 0.5);
+    j++
+  ) {
     const points = [
       new THREE.Vector3(-squareSize / 2, squareSize / 2, 0),
       new THREE.Vector3(-squareSize / 2, -squareSize / 2, 0),
@@ -134,7 +146,10 @@ const render = () => {
         el.triangle.position.x + groupMesh.position.x,
         el.triangle.position.y + groupMesh.position.y + 10
       );
-      if (mouseDistance < 85) {
+      if (
+        Math.abs(x - el.triangle.position.x + groupMesh.position.x) < 20 &&
+        Math.abs(y - el.triangle.position.y + groupMesh.position.y) < 100
+      ) {
         (el.triangle.material as THREE.Material).opacity = el.opacity;
         TweenMax.to(el.triangle.material, 2.0, {
           opacity: el.opacity,
@@ -144,6 +159,12 @@ const render = () => {
           opacity: 0,
         });
       }
+    });
+  } else {
+    triangleObjects.forEach(async (el: ITriangleObject) => {
+      TweenMax.to(el.triangle.material, 2.0, {
+        opacity: 0,
+      });
     });
   }
 
