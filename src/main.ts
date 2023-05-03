@@ -4,6 +4,7 @@ import Grid from './components/Grid';
 import Stats from 'stats.js';
 import { distance } from './utils';
 import TweenMax from 'gsap';
+import './styles/styles.css';
 
 interface ITriangleObject {
   triangle: Triangle;
